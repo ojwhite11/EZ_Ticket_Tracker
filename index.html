@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EZ Tech Repair Manager</title>
+  <meta name="description" content="Full-lifecycle device repair ticket management for EZ Tech Mobile." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens ────────────────────────────────────────────────── */
+    :root {
+      --bg: #0c0e14; --surface: #161923; --surface2: #202430;
+      --border: #2b3040; --text: #f1f5f9; --muted: #94a3b8;
+      --amber: #f59e0b; --green: #10b981; --red: #ef4444;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.5 'Inter', Segoe UI, Arial, sans-serif; }
+    button, input, select, textarea { font: inherit; cursor: pointer; }
+    button { border: 0; background: none; color: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid #fbbf24; outline-offset: 2px;
+    }
+    a { text-decoration: none; }
+
+    /* ── Shell layout ─────────────────────────────────────────────────── */
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 235px minmax(0,1fr); }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────── */
+    .sidebar { position: sticky; top: 0; height: 100vh; border-right: 1px solid var(--border); background: #11141c; padding: 27px 18px; display: flex; flex-direction: column; gap: 0; }
+    .brand { display: flex; gap: 11px; align-items: center; padding: 0 8px 28px; }
+    .brand-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--amber); color: #171008; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .brand-text strong { display: block; font-size: 14px; }
+    .brand-text small { color: var(--muted); font-size: 11px; }
+    .sidebar nav { display: grid; gap: 6px; }
+    .sidebar nav a { color: #aeb8ca; padding: 10px 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; transition: background .15s, color .15s; }
+    .sidebar nav a .nav-count { margin-left: auto; font-size: 11px; font-weight: 700; background: #2b3040; padding: 2px 7px; border-radius: 999px; }
+    .sidebar nav a.active, .sidebar nav a:hover { color: #fff; background: #202430; }
+    .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+    .demo-box { border: 1px solid var(--border); background: #191d27; border-radius: 10px; padding: 12px; font-size: 12px; }
+    .demo-dot { display: inline-block; width: 7px; height: 7px; background: var(--green); border-radius: 50%; margin-right: 7px; }
+    .demo-box p { color: var(--muted); margin: 6px 0 0; font-size: 11px; }
+    .help-btn { color: var(--muted); font-size: 12px; text-align: left; padding: 8px 0; }
+
+    /* ── Main & topbar ────────────────────────────────────────────────── */
+    .shell > main { min-width: 0; }
+    .topbar { height: 72px; position: sticky; top: 0; z-index: 5; background: #0c0e14ee; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 32px; }
+    .search-wrap { height: 40px; width: min(420px, 48vw); display: flex; align-items: center; gap: 9px; background: #161923; border: 1px solid var(--border); border-radius: 9px; padding: 0 12px; color: var(--muted); }
+    .search-wrap input { width: 100%; background: none; border: 0; outline: 0; color: var(--text); }
+    .btn-primary { border: 0; background: var(--amber); color: #171008; font-weight: 700; border-radius: 8px; padding: 10px 15px; }
+    .btn-primary:hover { background: #d97706; }
+    .content { padding: 34px 32px 52px; max-width: 1680px; margin: auto; }
+
+    /* ── Welcome header ───────────────────────────────────────────────── */
+    .welcome { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
+    .welcome-eyebrow { color: var(--amber); font-size: 11px; font-weight: 700; letter-spacing: .13em; margin-bottom: 6px; }
+    .welcome h1 { font-size: 29px; font-weight: 700; margin-bottom: 4px; }
+    .welcome p { color: var(--muted); margin: 0; }
+    .avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #3b2c10; color: #fbbf24; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+
+    /* ── KPI metrics ──────────────────────────────────────────────────── */
+    .metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 30px; }
+    .metric { min-height: 116px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; gap: 14px; align-items: flex-start; }
+    .tone { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; }
+    .tone-blue { background: #172d55; color: #60a5fa; }
+    .tone-green { background: #103e34; color: #34d399; }
+    .tone-red { background: #4a1f27; color: #fb7185; }
+    .tone-amber { background: #493610; color: #fbbf24; }
+    .tone-purple { background: #33245a; color: #a78bfa; }
+    .metric-info p { margin: 0; color: var(--muted); font-size: 12px; }
+    .metric-info strong { display: block; font-size: 24px; font-weight: 700; margin: 2px 0; }
+    .metric-info small { color: var(--muted); font-size: 11px; }
+
+    /* ── Queue section ────────────────────────────────────────────────── */
+    .workspace { background: var(--surface); border: 1px solid var(--border); border-radius: 13px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 22px 14px; }
+    .section-head h2 { font-size: 17px; }
+    .section-head p { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+    .view-toggle { display: flex; background: #0e1118; border: 1px solid var(--border); padding: 3px; border-radius: 8px; }
+    .view-toggle button { border: 0; color: var(--muted); background: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; }
+    .view-toggle button.active { background: #2b3040; color: #fff; }
+    .filters { border-top: 1px solid var(--border); padding: 10px 22px; display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
+    .filters label { display: flex; align-items: center; gap: 6px; }
+    .filters select { background: #10131b; color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11px; }
+    .filters .clear-btn { background: none; border: 0; color: var(--amber); font-size: 11px; cursor: pointer; }
+
+    /* ── Kanban ───────────────────────────────────────────────────────── */
+    .kanban { display: grid; grid-template-columns: repeat(7, minmax(240px,1fr)); gap: 10px; overflow-x: auto; padding: 10px 12px 18px; }
+    .column { min-height: 380px; background: #10131a; border: 1px solid #252a38; border-radius: 10px; }
+    .column-header { height: 49px; display: flex; align-items: center; justify-content: space-between; padding: 0 11px; border-bottom: 1px solid #252a38; }
+    .column-header span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .column-body { padding: 8px; }
+    .empty { text-align: center; color: #536074; padding: 25px; font-size: 12px; }
+
+    /* ── Ticket card ──────────────────────────────────────────────────── */
+    .card { width: 100%; text-align: left; background: #1a1e29; border: 1px solid #2d3344; border-radius: 9px; color: var(--text); padding: 12px; margin-bottom: 8px; cursor: pointer; transition: transform .15s; }
+    .card:hover { transform: translateY(-2px); }
+    .card.overdue { border-left: 3px solid var(--red); }
+    .card-top, .card-footer { display: flex; justify-content: space-between; align-items: center; }
+    .card code { font: 600 10px 'IBM Plex Mono', monospace; color: #8d9ab0; }
+    .card h3 { font-size: 13px; margin: 10px 0 1px; }
+    .card-customer { font-size: 11px; color: #aeb8ca; margin: 0 0 8px; }
+    .card-problem { margin: 0 0 10px; padding: 8px; background: #12151d; border-radius: 6px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .card-footer { color: #8d9ab0; font-size: 9px; margin-top: 4px; }
+    .card-footer .overdue-flag { color: #fb7185; }
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    .badge { display: inline-block; border-radius: 999px; padding: 3px 8px; font-size: 10px; font-weight: 700; white-space: nowrap; background: #303546; color: #cbd5e1; }
+    .badge-received { background: #27245a; color: #a5b4fc; }
+    .badge-diagnosing, .badge-normal { background: #172d55; color: #60a5fa; }
+    .badge-awaiting-parts, .badge-pending { background: #4a3510; color: #fbbf24; }
+    .badge-in-repair { background: #33245a; color: #c4b5fd; }
+    .badge-testing { background: #103945; color: #67e8f9; }
+    .badge-ready-for-pickup, .badge-approved { background: #103e34; color: #34d399; }
+    .badge-urgent, .badge-declined { background: #4a1f27; color: #fb7185; }
+    .badge-delivered { background: #1e2330; color: #94a3b8; }
+    .badge-low { background: #1a2030; color: #64748b; }
+
+    /* ── Table / list view ────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; min-width: 920px; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #272c39; }
+    th { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    td { font-size: 12px; }
+    td strong { display: block; font-weight: 600; }
+    td small { display: block; color: var(--muted); font-size: 11px; }
+    td code { font: 600 10px 'IBM Plex Mono', monospace; color: #8d9ab0; }
+    tbody tr { cursor: pointer; transition: background .1s; }
+    tbody tr:hover { background: #1a1e2a; }
+    .overdue-row { box-shadow: inset 3px 0 var(--red); }
+
+    /* ── Bottom panels (Dashboard) ────────────────────────────────────── */
+    .bottom { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-top: 15px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 13px; padding: 18px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .panel-head h2 { font-size: 17px; }
+    .panel-head span { font-size: 10px; color: var(--muted); }
+    .activity-row { display: flex; align-items: center; width: 100%; border: 0; border-top: 1px solid #282d3a; background: none; color: var(--text); padding: 11px 2px; text-align: left; gap: 11px; cursor: pointer; }
+    .activity-row:hover { background: #1a1e2a; }
+    .activity-row .tone { width: 30px; height: 30px; flex-shrink: 0; }
+    .activity-row .act-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .activity-row .act-text strong { font-size: 12px; font-weight: 600; }
+    .activity-row .act-text small { font-size: 9px; color: var(--muted); }
+    .activity-row time { font-size: 9px; color: var(--muted); white-space: nowrap; }
+    .work-row { margin: 16px 0; }
+    .work-top { display: flex; gap: 9px; align-items: center; margin-bottom: 8px; }
+    .work-avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .work-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .work-count { color: var(--muted); font-size: 11px; }
+    .work-bar { height: 4px; background: #282d3a; border-radius: 2px; }
+    .work-bar-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+
+    /* ── Activity full page ────────────────────────────────────────────── */
+    .activity-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 13px; overflow: hidden; }
+    .activity-panel-head { padding: 20px 22px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .activity-panel-head h2 { font-size: 17px; }
+    .activity-panel-head span { font-size: 10px; color: var(--muted); }
+    .activity-full-row { display: flex; align-items: center; width: 100%; border: 0; border-top: 1px solid #282d3a; background: none; color: var(--text); padding: 14px 22px; text-align: left; gap: 14px; cursor: pointer; }
+    .activity-full-row:hover { background: #1a1e2a; }
+
+    /* ── Modals ───────────────────────────────────────────────────────── */
+    .backdrop { position: fixed; inset: 0; z-index: 20; background: #04060acc; display: grid; place-items: center; padding: 20px; }
+    .modal { width: min(550px,100%); max-height: 92vh; overflow-y: auto; background: #171a24; border: 1px solid #343a4c; border-radius: 14px; }
+    .modal.wide { width: min(900px,100%); }
+    .modal-header { position: sticky; top: 0; background: #171a24; border-bottom: 1px solid var(--border); padding: 17px 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 1; }
+    .modal-header h2 { font-size: 16px; margin-bottom: 3px; }
+    .modal-header p { margin: 0; color: var(--muted); font-size: 12px; }
+    .modal-close { border: 0; background: #252a37; color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+    /* ── Ticket detail ────────────────────────────────────────────────── */
+    .details-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; padding: 20px; }
+    .detail-badges { display: flex; gap: 7px; margin-bottom: 14px; flex-wrap: wrap; }
+    .info-block { background: #11141c; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 12px; }
+    .info-block h3 { font-size: 12px; font-weight: 600; margin-bottom: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .info-block p { font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+    .info-dl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .info-dl-item { background: #181c26; padding: 9px; border-radius: 6px; }
+    .info-dl-item dt { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .info-dl-item dd { font-size: 12px; }
+    .info-dl-item code { font: 600 11px 'IBM Plex Mono', monospace; color: #8d9ab0; }
+    .check-row { display: flex; align-items: center; gap: 9px; padding: 7px; border-top: 1px solid #282d39; cursor: pointer; }
+    .check-row input { cursor: pointer; accent-color: var(--amber); width: 14px; height: 14px; }
+    .check-row span { font-size: 12px; }
+    .timeline { border-left: 1px solid var(--border); padding-left: 18px; }
+    .timeline h3 { font-size: 12px; font-weight: 600; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .timeline-event { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #1e2230; }
+    .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; margin-top: 4px; }
+    .timeline-event strong { display: block; font-size: 12px; margin-bottom: 3px; }
+    .timeline-event time { font-size: 9px; color: var(--muted); }
+    .detail-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding: 14px 20px; }
+    .detail-actions span { font-size: 12px; color: var(--muted); }
+    .detail-actions-btns { display: flex; gap: 8px; }
+    .btn-secondary { background: #252a37; border: 1px solid #3a4152; color: #fff; border-radius: 8px; padding: 9px 14px; font-size: 13px; }
+
+    /* ── New ticket form ──────────────────────────────────────────────── */
+    .form { padding: 20px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid label { display: flex; flex-direction: column; color: #b8c2d2; font-size: 11px; gap: 5px; }
+    .form-grid label.full { grid-column: 1 / -1; }
+    .form-grid input, .form-grid select, .form-grid textarea {
+      background: #10131b; color: var(--text); border: 1px solid var(--border); border-radius: 7px; padding: 8px; font-size: 13px;
+    }
+    .form-grid input:focus, .form-grid select:focus, .form-grid textarea:focus { outline: 2px solid var(--amber); }
+    .form-grid textarea { min-height: 84px; resize: vertical; }
+    .form-footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+
+    /* ── Help modal ───────────────────────────────────────────────────── */
+    .help-body { padding: 21px; }
+    .help-purpose { background: #11141c; border-left: 3px solid var(--amber); padding: 12px; font-size: 13px; margin-bottom: 18px; border-radius: 0 6px 6px 0; }
+    .help-steps { padding-left: 0; list-style: none; }
+    .help-steps li { margin: 16px 0; }
+    .help-steps li b { display: block; font-size: 13px; margin-bottom: 3px; }
+    .help-steps li span { color: var(--muted); font-size: 12px; }
+    .help-note { background: #252a37; padding: 12px; border-radius: 8px; font-size: 12px; color: var(--muted); margin-top: 18px; }
+
+    /* ── Toast ────────────────────────────────────────────────────────── */
+    .toast { position: fixed; z-index: 40; right: 24px; bottom: 24px; background: #103e34; color: #6ee7b7; padding: 11px 16px; border-radius: 9px; font-size: 13px; display: none; }
+
+    /* ── Responsive ───────────────────────────────────────────────────── */
+    @media (max-width: 1000px) {
+      .shell { grid-template-columns: 76px 1fr; }
+      .sidebar { padding: 25px 12px; }
+      .brand-text, .demo-box, .help-btn { display: none; }
+      .sidebar nav a { font-size: 0; justify-content: center; padding: 12px; }
+      .sidebar nav a .nav-icon { font-size: 16px; }
+      .sidebar nav a .nav-count { display: none; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .bottom { grid-template-columns: 1fr; }
+      .content { padding: 25px 20px; }
+    }
+    @media (max-width: 650px) {
+      .shell { display: block; }
+      .sidebar { display: none; }
+      .topbar { height: auto; padding: 10px 12px; flex-wrap: wrap; }
+      .search-wrap { width: 100%; }
+      .content { padding: 20px 12px; }
+      .welcome h1 { font-size: 22px; }
+      .avatar { display: none; }
+      .metrics { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .metric { padding: 12px; min-height: 100px; }
+      .metric .tone { display: none; }
+      .kanban { grid-template-columns: repeat(7, 82vw); scroll-snap-type: x mandatory; }
+      .column { scroll-snap-align: start; }
+      .bottom { display: block; }
+      .panel { margin-top: 12px; }
+      .form-grid, .details-grid { grid-template-columns: 1fr; }
+      .form-grid label.full { grid-column: auto; }
+      .timeline { border: 0; border-top: 1px solid var(--border); padding: 15px 0; }
+      .detail-actions { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .modal { max-height: 100vh; border-radius: 0; }
+      .backdrop { padding: 0; align-items: flex-end; }
+      .info-dl { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">EZ</div>
+      <div class="brand-text">
+        <strong>EZ Tech</strong>
+        <small>Repair Manager</small>
+      </div>
+    </div>
+    <nav id="sidebar-nav">
+      <a href="#dashboard" data-section="dashboard" class="active">
+        <span class="nav-icon">▦</span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a href="#tickets" data-section="tickets">
+        <span class="nav-icon">▤</span>
+        <span class="nav-label">All Tickets</span>
+        <span class="nav-count" id="nav-open-count">6</span>
+      </a>
+      <a href="#activity" data-section="activity">
+        <span class="nav-icon">↻</span>
+        <span class="nav-label">Activity</span>
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="demo-box">
+        <span class="demo-dot"></span><strong>Demo workspace</strong>
+        <p>Changes stay in this browser session.</p>
+      </div>
+      <button class="help-btn" onclick="openHelp()">ⓘ How to use</button>
+    </div>
+  </aside>
+
+  <!-- ── Main ──────────────────────────────────────────────────────────── -->
+  <main>
+    <header class="topbar">
+      <label class="search-wrap">
+        <span>⌕</span>
+        <input id="search-input" type="search" placeholder="Search customer, phone, device or ticket…" oninput="onSearch(this.value)" aria-label="Search tickets" />
+      </label>
+      <button class="btn-primary" onclick="openNewTicket()">＋ New ticket</button>
+    </header>
+    <div class="content" id="main-content"></div>
+  </main>
+</div>
+
+<!-- ── Modal container ──────────────────────────────────────────────────── -->
+<div id="modal-root"></div>
+
+<!-- ── Toast ────────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const STAGES = ["Received","Diagnosing","Awaiting Parts","In Repair","Testing","Ready for Pickup","Delivered"];
+
+// ── Seed data ─────────────────────────────────────────────────────────────
+const SEED = [
+  {id:"EZ-1048",customer:"Maya Thompson",phone:"(404) 555-0182",email:"maya@example.com",device:"Apple iPhone 14 Pro",serial:"F2LX9K3Q",problem:"Screen flickers and touch stops responding near the bottom edge.",priority:"Urgent",technician:"Oshay",due:"2026-08-17",estimate:189,approval:"Approved",status:"In Repair",condition:"Small chip on lower-right corner; cameras intact.",notes:"Customer needs device before business trip.",tasks:[{label:"Back up device",done:true},{label:"Disconnect battery",done:true},{label:"Replace display",done:false},{label:"Run touch test",done:false}],activity:[{text:"Repair started by Oshay",time:"Today, 9:42 AM"},{text:"Estimate approved — simulated SMS sent",time:"Yesterday, 4:16 PM"}]},
+  {id:"EZ-1047",customer:"Andre Williams",phone:"(678) 555-0114",email:"andre@example.com",device:"Samsung Galaxy S23",serial:"R5CT31K8",problem:"USB-C port only charges when the cable is held at an angle.",priority:"Normal",technician:"Jalen",due:"2026-08-20",estimate:129,approval:"Approved",status:"Testing",condition:"Light wear around charging port.",notes:"Verify fast charging.",tasks:[{label:"Clean port",done:true},{label:"Replace daughterboard",done:true},{label:"Test fast charge",done:false}],activity:[{text:"Moved to Testing",time:"Today, 8:30 AM"},{text:"Part installed",time:"Yesterday, 2:10 PM"}]},
+  {id:"EZ-1046",customer:"Keisha Brown",phone:"(770) 555-0177",email:"keisha@example.com",device:"Dell Inspiron 15",serial:"DL8Q-2241",problem:"Laptop powers on but displays a black screen after a recent update.",priority:"Normal",technician:"Oshay",due:"2026-08-21",estimate:95,approval:"Pending",status:"Diagnosing",condition:"Charger included; cosmetic hinge wear.",notes:"Run external display and memory diagnostics.",tasks:[{label:"Test external display",done:true},{label:"Run diagnostics",done:false},{label:"Prepare estimate",done:false}],activity:[{text:"Diagnostics started",time:"Today, 10:15 AM"}]},
+  {id:"EZ-1045",customer:"Carlos Rivera",phone:"(404) 555-0148",email:"carlos@example.com",device:"PlayStation 5",serial:"AK5839201",problem:"Console overheats and shuts down after twenty minutes.",priority:"Low",technician:"Jalen",due:"2026-08-22",estimate:110,approval:"Approved",status:"Awaiting Parts",condition:"Dust buildup visible; stand not included.",notes:"Replacement fan ordered.",tasks:[{label:"Inspect fan",done:true},{label:"Order fan",done:true},{label:"Install fan",done:false}],activity:[{text:"Fan ordered — simulated email sent",time:"Yesterday, 11:20 AM"}]},
+  {id:"EZ-1044",customer:"Nia Jackson",phone:"(470) 555-0199",email:"nia@example.com",device:"Apple iPad Air",serial:"IPD77XK2",problem:"Cracked glass after drop; LCD image still visible.",priority:"Normal",technician:"Oshay",due:"2026-08-18",estimate:159,approval:"Approved",status:"Ready for Pickup",condition:"Cracked glass; frame slightly bent.",notes:"Customer notified at 2:05 PM.",tasks:[{label:"Replace digitizer",done:true},{label:"Test touch",done:true},{label:"Clean device",done:true}],activity:[{text:"Ready for pickup — simulated SMS sent",time:"Today, 2:05 PM"}]},
+  {id:"EZ-1043",customer:"Derek Hall",phone:"(678) 555-0163",email:"derek@example.com",device:"Nintendo Switch OLED",serial:"XTJ903812",problem:"Left Joy-Con disconnects during gameplay.",priority:"Low",technician:"Unassigned",due:"2026-08-24",estimate:65,approval:"Pending",status:"Received",condition:"Screen protector scratched; console otherwise good.",notes:"Needs initial inspection.",tasks:[{label:"Reproduce issue",done:false},{label:"Inspect rail",done:false}],activity:[{text:"Ticket received",time:"Today, 3:18 PM"}]},
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  tickets: JSON.parse(JSON.stringify(SEED)), // deep clone
+  view: localStorage.getItem('eztech-view') || 'board',
+  query: '',
+  priority: 'All',
+  tech: 'All',
+  section: location.hash.replace('#','') || 'dashboard',
+  nextId: 1049,
+};
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+const isOverdue = t => !['Delivered','Ready for Pickup'].includes(t.status) && t.due < '2026-08-18';
+const badgeClass = s => 'badge badge-' + s.toLowerCase().replaceAll(' ','-');
+const money = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const now = () => new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+
+// Get filtered visible tickets
+const visible = () => state.tickets.filter(t => {
+  const q = state.query.toLowerCase();
+  const match = `${t.id} ${t.customer} ${t.phone} ${t.device}`.toLowerCase().includes(q);
+  const pri = state.priority === 'All' || t.priority === state.priority;
+  const tec = state.tech === 'All' || t.technician === state.tech;
+  return match && pri && tec;
+});
+
+// KPIs
+const kpis = () => ({
+  open: state.tickets.filter(t => t.status !== 'Delivered').length,
+  ready: state.tickets.filter(t => t.status === 'Ready for Pickup').length,
+  late: state.tickets.filter(isOverdue).length,
+});
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function flash(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = '✓ ' + msg;
+  el.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2600);
+}
+
+// ── Routing ────────────────────────────────────────────────────────────────
+window.addEventListener('hashchange', () => {
+  state.section = location.hash.replace('#','') || 'dashboard';
+  updateNav();
+  renderContent();
+});
+
+function updateNav() {
+  document.querySelectorAll('#sidebar-nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.section === state.section);
+  });
+  const k = kpis();
+  document.getElementById('nav-open-count').textContent = k.open;
+}
+
+// ── HTML builders ──────────────────────────────────────────────────────────
+function metricHTML(icon, label, value, note, tone) {
+  return `<article class="metric">
+    <div class="tone tone-${tone}">${icon}</div>
+    <div class="metric-info"><p>${label}</p><strong>${value}</strong><small>${note}</small></div>
+  </article>`;
+}
+
+function cardHTML(t) {
+  const od = isOverdue(t);
+  return `<button class="card${od?' overdue':''}" onclick="openTicket('${esc(t.id)}')" aria-label="Open ticket ${esc(t.id)}">
+    <div class="card-top"><code>${esc(t.id)}</code><span class="${badgeClass(t.priority)}">${esc(t.priority)}</span></div>
+    <h3>${esc(t.device)}</h3>
+    <p class="card-customer">${esc(t.customer)}</p>
+    <p class="card-problem">${esc(t.problem)}</p>
+    <div class="card-footer">
+      <span class="${od?'overdue-flag':''}">${od?'⚠ Overdue':'◷ '+t.due.slice(5).replace('-','/')}</span>
+      <span>● ${esc(t.technician)}</span>
+    </div>
+  </button>`;
+}
+
+function kanbanHTML(tickets) {
+  return `<div class="kanban">${STAGES.map(s => {
+    const cols = tickets.filter(t => t.status === s);
+    return `<section class="column">
+      <div class="column-header">
+        <span class="${badgeClass(s)}">${s}</span>
+        <span style="color:var(--muted);font-size:12px;font-weight:700">${cols.length}</span>
+      </div>
+      <div class="column-body">${cols.length ? cols.map(cardHTML).join('') : '<p class="empty">No tickets</p>'}</div>
+    </section>`;
+  }).join('')}</div>`;
+}
+
+function listHTML(tickets) {
+  if (!tickets.length) return '<p class="empty" style="padding:30px">No tickets match the current filters.</p>';
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>Ticket</th><th>Customer &amp; Device</th><th>Status</th><th>Priority</th><th>Technician</th><th>Due</th><th>Estimate</th></tr></thead>
+    <tbody>${tickets.map(t => `<tr class="${isOverdue(t)?'overdue-row':''}" onclick="openTicket('${esc(t.id)}')" tabindex="0">
+      <td><code>${esc(t.id)}</code></td>
+      <td><strong>${esc(t.customer)}</strong><small>${esc(t.device)}</small></td>
+      <td><span class="${badgeClass(t.status)}">${esc(t.status)}</span></td>
+      <td><span class="${badgeClass(t.priority)}">${esc(t.priority)}</span></td>
+      <td>${esc(t.technician)}</td>
+      <td>${isOverdue(t)?'⚠ ':''}${esc(t.due)}</td>
+      <td>${money(t.estimate)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function queueHTML(tickets) {
+  const v = visible();
+  const hasFilters = state.query || state.priority !== 'All' || state.tech !== 'All';
+  return `<div class="workspace">
+    <div class="section-head">
+      <div><h2>Active repair queue</h2><p>${v.length} of ${tickets.length} tickets shown</p></div>
+      <div class="view-toggle">
+        <button class="${state.view==='board'?'active':''}" onclick="setView('board')">▦ Board</button>
+        <button class="${state.view==='list'?'active':''}" onclick="setView('list')">☷ List</button>
+      </div>
+    </div>
+    <div class="filters">
+      <label>Priority
+        <select onchange="setFilter('priority',this.value)">
+          <option${state.priority==='All'?' selected':''}>All</option>
+          <option${state.priority==='Urgent'?' selected':''}>Urgent</option>
+          <option${state.priority==='Normal'?' selected':''}>Normal</option>
+          <option${state.priority==='Low'?' selected':''}>Low</option>
+        </select>
+      </label>
+      <label>Technician
+        <select onchange="setFilter('tech',this.value)">
+          <option${state.tech==='All'?' selected':''}>All</option>
+          <option${state.tech==='Oshay'?' selected':''}>Oshay</option>
+          <option${state.tech==='Jalen'?' selected':''}>Jalen</option>
+          <option${state.tech==='Unassigned'?' selected':''}>Unassigned</option>
+        </select>
+      </label>
+      ${hasFilters?'<button class="clear-btn" onclick="clearFilters()">Clear filters</button>':''}
+    </div>
+    ${state.view==='board' ? kanbanHTML(v) : listHTML(v)}
+  </div>`;
+}
+
+// ── View renderers ─────────────────────────────────────────────────────────
+function renderDashboard() {
+  const k = kpis();
+  const t = state.tickets;
+  const toneColors = ['#f59e0b','#10b981','#94a3b8'];
+
+  return `
+    <section class="welcome">
+      <div>
+        <div class="welcome-eyebrow">TUESDAY, AUGUST 18</div>
+        <h1>Repair operations, at a glance.</h1>
+        <p>Track every device from intake to delivery without losing the details.</p>
+      </div>
+      <div class="avatar">OW</div>
+    </section>
+
+    <section class="metrics" aria-label="Key performance indicators">
+      ${metricHTML('▤','Open tickets',k.open,'Across '+STAGES.length+' active stages','blue')}
+      ${metricHTML('✓','Ready for pickup',k.ready,'Customers notified','green')}
+      ${metricHTML('!','Overdue',k.late,'Needs attention','red')}
+      ${metricHTML('◷','Avg. turnaround','2.8 days','↓ 0.4 days this week','amber')}
+    </section>
+
+    ${queueHTML(t)}
+
+    <section class="bottom">
+      <div class="panel">
+        <div class="panel-head"><h2>Recent activity</h2><span>Live demo feed</span></div>
+        ${t.slice(0,4).map((ticket,i) => {
+          const icons = ['↗','✓','⌕','□'];
+          const tones = ['amber','green','blue','purple'];
+          return `<button class="activity-row" onclick="openTicket('${esc(ticket.id)}')">
+            <div class="tone tone-${tones[i]}">${icons[i]}</div>
+            <div class="act-text">
+              <strong>${esc(ticket.activity[0].text)}</strong>
+              <small>${esc(ticket.id)} · ${esc(ticket.customer)}</small>
+            </div>
+            <time>${esc(ticket.activity[0].time)}</time>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Team workload</h2><span>Open assignments</span></div>
+        ${['Oshay','Jalen','Unassigned'].map((name,i) => {
+          const open = t.filter(x => x.technician===name && x.status!=='Delivered').length;
+          const total = t.filter(x => x.technician===name).length;
+          const pct = Math.min(total * 25, 100);
+          return `<div class="work-row">
+            <div class="work-top">
+              <div class="work-avatar" style="background:${toneColors[i]};color:#111">${name[0]}</div>
+              <span class="work-name">${name}</span>
+              <span class="work-count">${open} tickets</span>
+            </div>
+            <div class="work-bar"><div class="work-bar-fill" style="width:${pct}%;background:${toneColors[i]}"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+}
+
+function renderTickets() {
+  return `
+    <section class="welcome">
+      <div>
+        <div class="welcome-eyebrow">ALL TICKETS</div>
+        <h1>Repair queue — full view.</h1>
+        <p>Browse, search, and filter every active and completed ticket.</p>
+      </div>
+      <div class="avatar">OW</div>
+    </section>
+    <div style="margin-top:24px">${queueHTML(state.tickets)}</div>`;
+}
+
+function renderActivity() {
+  // Flatten all activity events across all tickets
+  const events = state.tickets.flatMap(t =>
+    t.activity.map(a => ({ ...a, ticketId: t.id, device: t.device, customer: t.customer }))
+  );
+  return `
+    <section class="welcome">
+      <div>
+        <div class="welcome-eyebrow">ACTIVITY LOG</div>
+        <h1>All recent events.</h1>
+        <p>A complete record of every status change, notification, and technician action.</p>
+      </div>
+      <div class="avatar">OW</div>
+    </section>
+    <div style="margin-top:24px">
+      <div class="activity-panel">
+        <div class="activity-panel-head">
+          <h2>Full activity feed</h2>
+          <span>${events.length} events across ${state.tickets.length} tickets</span>
+        </div>
+        ${events.map(a => `
+          <button class="activity-full-row" onclick="openTicket('${esc(a.ticketId)}')">
+            <div class="tone tone-amber" style="width:30px;height:30px;flex-shrink:0">↻</div>
+            <div class="act-text" style="flex:1">
+              <strong>${esc(a.text)}</strong>
+              <small>${esc(a.ticketId)} · ${esc(a.device)} · ${esc(a.customer)}</small>
+            </div>
+            <time style="font-size:9px;color:var(--muted);white-space:nowrap">${esc(a.time)}</time>
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── Main render ────────────────────────────────────────────────────────────
+function renderContent() {
+  const content = document.getElementById('main-content');
+  switch (state.section) {
+    case 'tickets':  content.innerHTML = renderTickets();  break;
+    case 'activity': content.innerHTML = renderActivity(); break;
+    default:         content.innerHTML = renderDashboard(); break;
+  }
+  // Restore search input value
+  const si = document.getElementById('search-input');
+  if (si) si.value = state.query;
+}
+
+// ── State mutators ─────────────────────────────────────────────────────────
+function setView(v) {
+  state.view = v;
+  localStorage.setItem('eztech-view', v);
+  renderContent();
+}
+
+function onSearch(val) {
+  state.query = val;
+  renderContent();
+}
+
+function setFilter(key, val) {
+  state[key] = val;
+  renderContent();
+}
+
+function clearFilters() {
+  state.query = '';
+  state.priority = 'All';
+  state.tech = 'All';
+  const si = document.getElementById('search-input');
+  if (si) si.value = '';
+  renderContent();
+}
+
+function moveTicket(id, newStatus) {
+  const event = { text: `Status changed to ${newStatus} — simulated customer notification sent`, time: `Today, ${now()}` };
+  state.tickets = state.tickets.map(t => t.id === id ? { ...t, status: newStatus, activity: [event, ...t.activity] } : t);
+  flash(`${id} moved to ${newStatus}`);
+  updateNav();
+  openTicket(id); // refresh the modal
+}
+
+function toggleTask(ticketId, taskIndex) {
+  state.tickets = state.tickets.map(t => {
+    if (t.id !== ticketId) return t;
+    const tasks = t.tasks.map((x,i) => i === taskIndex ? { ...x, done: !x.done } : x);
+    return { ...t, tasks };
+  });
+  openTicket(ticketId); // refresh modal
+}
+
+// ── Ticket detail modal ────────────────────────────────────────────────────
+function openTicket(id) {
+  const t = state.tickets.find(x => x.id === id);
+  if (!t) return;
+  const si = STAGES.indexOf(t.status);
+  const hasPrev = si > 0;
+  const hasNext = si < STAGES.length - 1;
+
+  const html = `<div class="backdrop" id="modal-backdrop" onmousedown="backdropClose(event)">
+    <section class="modal wide" role="dialog" aria-modal="true" aria-label="${esc(t.id)}">
+      <div class="modal-header">
+        <div><h2>${esc(t.id)} · ${esc(t.device)}</h2><p>${esc(t.customer)} · ${esc(t.phone)}</p></div>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+      </div>
+      <div class="details-grid">
+        <div>
+          <div class="detail-badges">
+            <span class="${badgeClass(t.status)}">${esc(t.status)}</span>
+            <span class="${badgeClass(t.priority)}">${esc(t.priority)}</span>
+            <span class="${badgeClass(t.approval)}">${esc(t.approval)} estimate</span>
+          </div>
+          <div class="info-block">
+            <h3>Repair details</h3>
+            <p>${esc(t.problem)}</p>
+            <div class="info-dl">
+              <div class="info-dl-item"><dt>Serial / IMEI</dt><dd><code>${esc(t.serial)}</code></dd></div>
+              <div class="info-dl-item"><dt>Condition at intake</dt><dd>${esc(t.condition)}</dd></div>
+              <div class="info-dl-item"><dt>Assigned to</dt><dd>${esc(t.technician)}</dd></div>
+              <div class="info-dl-item"><dt>Due date</dt><dd>${esc(t.due)}</dd></div>
+              <div class="info-dl-item"><dt>Estimate</dt><dd>${money(t.estimate)}</dd></div>
+              <div class="info-dl-item"><dt>Internal note</dt><dd>${esc(t.notes)}</dd></div>
+            </div>
+          </div>
+          <div class="info-block">
+            <h3>Repair checklist</h3>
+            ${t.tasks.map((x,i) => `
+              <label class="check-row">
+                <input type="checkbox" ${x.done?'checked':''} onchange="toggleTask('${esc(t.id)}',${i})" />
+                <span>${esc(x.label)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+        <aside class="timeline">
+          <h3>Activity &amp; notifications</h3>
+          ${t.activity.map(a => `
+            <div class="timeline-event">
+              <div class="timeline-dot"></div>
+              <div><strong>${esc(a.text)}</strong><time>${esc(a.time)}</time></div>
+            </div>`).join('')}
+        </aside>
+      </div>
+      <div class="detail-actions">
+        <span>Move ticket through the workflow</span>
+        <div class="detail-actions-btns">
+          ${hasPrev?`<button class="btn-secondary" onclick="moveTicket('${esc(t.id)}','${esc(STAGES[si-1])}')">← Previous</button>`:''}
+          ${hasNext?`<button class="btn-primary" onclick="moveTicket('${esc(t.id)}','${esc(STAGES[si+1])}')">Move to ${esc(STAGES[si+1])} →</button>`:''}
+        </div>
+      </div>
+    </section>
+  </div>`;
+  document.getElementById('modal-root').innerHTML = html;
+}
+
+// ── New ticket modal ───────────────────────────────────────────────────────
+function openNewTicket() {
+  // Default due date = 2 days from today
+  const due = new Date(); due.setDate(due.getDate()+2);
+  const dueStr = due.toISOString().slice(0,10);
+
+  const html = `<div class="backdrop" id="modal-backdrop" onmousedown="backdropClose(event)">
+    <section class="modal wide" role="dialog" aria-modal="true" aria-label="Create a repair ticket">
+      <div class="modal-header">
+        <div><h2>Create a repair ticket</h2><p>Capture the device, customer, and service details.</p></div>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+      </div>
+      <form class="form" onsubmit="submitNewTicket(event)">
+        <div class="form-grid">
+          <label>Customer name *<input name="customer" required placeholder="Jordan Smith" /></label>
+          <label>Phone number *<input name="phone" required placeholder="(404) 555-0123" /></label>
+          <label>Email address<input name="email" type="email" placeholder="jordan@example.com" /></label>
+          <label>Device *<input name="device" required placeholder="Apple iPhone 15" /></label>
+          <label>Serial / IMEI<input name="serial" placeholder="Optional" /></label>
+          <label>Device condition<input name="condition" placeholder="Scratches, cracks, accessories…" /></label>
+          <label>Priority
+            <select name="priority">
+              <option>Low</option><option selected>Normal</option><option>Urgent</option>
+            </select>
+          </label>
+          <label>Technician
+            <select name="technician">
+              <option>Unassigned</option><option>Oshay</option><option>Jalen</option>
+            </select>
+          </label>
+          <label>Due date *<input name="due" type="date" value="${dueStr}" required /></label>
+          <label>Estimated cost ($)<input name="estimate" type="number" min="0" placeholder="0" /></label>
+          <label class="full">Problem description *<textarea name="problem" required placeholder="Describe the issue in the customer's own words…"></textarea></label>
+        </div>
+        <div class="form-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Create ticket</button>
+        </div>
+      </form>
+    </section>
+  </div>`;
+  document.getElementById('modal-root').innerHTML = html;
+}
+
+function submitNewTicket(e) {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const id = `EZ-${state.nextId++}`;
+  const t = {
+    id, customer: f.get('customer'), phone: f.get('phone'), email: f.get('email'),
+    device: f.get('device'), serial: f.get('serial') || 'Not provided',
+    problem: f.get('problem'), priority: f.get('priority'), technician: f.get('technician'),
+    due: f.get('due'), estimate: Number(f.get('estimate')) || 0,
+    approval: 'Pending', status: 'Received',
+    condition: f.get('condition') || 'Not documented at intake',
+    notes: 'New intake — awaiting diagnosis.',
+    tasks: [{label:'Document condition',done:true},{label:'Run initial diagnostics',done:false},{label:'Prepare estimate',done:false}],
+    activity: [{text:'Ticket received',time:'Just now'}],
+  };
+  state.tickets = [t, ...state.tickets];
+  closeModal();
+  flash(`${id} created successfully`);
+  updateNav();
+  renderContent();
+}
+
+// ── Help modal ─────────────────────────────────────────────────────────────
+function openHelp() {
+  const html = `<div class="backdrop" id="modal-backdrop" onmousedown="backdropClose(event)">
+    <section class="modal" role="dialog" aria-modal="true" aria-label="How to use">
+      <div class="modal-header">
+        <div><h2>How to use EZ Tech Repair Manager</h2><p>A quick guide to the repair workflow.</p></div>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+      </div>
+      <div class="help-body">
+        <div class="help-purpose">
+          <strong>Purpose:</strong> Keep every customer repair organized from intake through delivery while documenting technician work and customer updates.
+        </div>
+        <ol class="help-steps">
+          <li><b>Create a ticket</b><span>Select New ticket and enter customer and device details. Each ticket gets a unique ID and starts in the Received stage.</span></li>
+          <li><b>Find and filter work</b><span>Use the search bar or Priority / Technician filters. Toggle between Board (Kanban) and List views.</span></li>
+          <li><b>Update a repair</b><span>Open a ticket, complete checklist tasks, and move it to the next stage. Each move logs a timestamped activity event.</span></li>
+          <li><b>Monitor the shop</b><span>Dashboard KPI cards update automatically. Check Team workload to balance technician assignments.</span></li>
+        </ol>
+        <div class="help-note">This course-project version simulates notifications and stores ticket changes only during the current browser session. Refreshing the page resets to demo data.</div>
+      </div>
+    </section>
+  </div>`;
+  document.getElementById('modal-root').innerHTML = html;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+function backdropClose(e) { if (e.target === e.currentTarget) closeModal(); }
+
+// Close modal on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── Init ───────────────────────────────────────────────────────────────────
+updateNav();
+renderContent();
+</script>
+</body>
+</html>

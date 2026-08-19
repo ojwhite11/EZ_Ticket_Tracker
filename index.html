@@ -218,6 +218,33 @@
     /* ── Toast ────────────────────────────────────────────────────────── */
     .toast { position: fixed; z-index: 40; right: 24px; bottom: 24px; background: #103e34; color: #6ee7b7; padding: 11px 16px; border-radius: 9px; font-size: 13px; display: none; }
 
+    /* ── Auth screen ──────────────────────────────────────────────────── */
+    .auth-screen { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+    .auth-screen.hidden { display: none; }
+    .auth-card { width: min(420px,100%); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .auth-brand { display: flex; align-items: center; gap: 12px; padding: 28px 28px 20px; }
+    .auth-brand-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px; background: var(--amber); color: #171008; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+    .auth-brand-text strong { display: block; font-size: 16px; font-weight: 700; }
+    .auth-brand-text small { color: var(--muted); font-size: 12px; }
+    .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin: 0 28px; gap: 0; }
+    .auth-tab { flex: 1; padding: 10px 0; font-size: 13px; font-weight: 600; color: var(--muted); border: 0; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+    .auth-tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+    .auth-form { padding: 24px 28px 28px; display: flex; flex-direction: column; gap: 14px; }
+    .auth-field { display: flex; flex-direction: column; gap: 6px; }
+    .auth-field label { font-size: 11px; color: #b8c2d2; font-weight: 600; }
+    .auth-field input { background: #10131b; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+    .auth-field input:focus { outline: 2px solid var(--amber); border-color: transparent; }
+    .auth-submit { background: var(--amber); color: #171008; font-weight: 700; border: 0; border-radius: 9px; padding: 12px; font-size: 14px; margin-top: 4px; transition: background .15s; }
+    .auth-submit:hover { background: #d97706; }
+    .auth-error { background: #4a1f27; color: #fb7185; border-radius: 8px; padding: 10px 12px; font-size: 12px; display: none; }
+    .auth-error.show { display: block; }
+    .auth-footer { text-align: center; padding: 0 28px 24px; font-size: 12px; color: var(--muted); }
+    .auth-footer a { color: var(--amber); cursor: pointer; }
+    /* Logout button */
+    .logout-btn { width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px; font-size: 12px; color: var(--muted); border: 1px solid var(--border); background: none; transition: background .15s, color .15s; }
+    .logout-btn:hover { background: #202430; color: #fff; }
+    .session-info { padding: 8px 12px; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+
     /* ── Responsive ───────────────────────────────────────────────────── */
     @media (max-width: 1000px) {
       .shell { grid-template-columns: 76px 1fr; }
@@ -258,7 +285,57 @@
 </head>
 <body>
 
-<div class="shell">
+<!-- ── Auth screen ───────────────────────────────────────────────────────── -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-brand-icon">EZ</div>
+      <div class="auth-brand-text">
+        <strong>EZ Tech Repair Manager</strong>
+        <small>Sign in to access your repair workspace</small>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign in</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create account</button>
+    </div>
+    <div class="auth-form" id="auth-form-login">
+      <div class="auth-error" id="login-error"></div>
+      <div class="auth-field">
+        <label for="login-email">Email address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+      </div>
+      <button class="auth-submit" onclick="handleLogin()">Sign in →</button>
+    </div>
+    <div class="auth-form" id="auth-form-signup" style="display:none">
+      <div class="auth-error" id="signup-error"></div>
+      <div class="auth-field">
+        <label for="signup-name">Full name</label>
+        <input type="text" id="signup-name" placeholder="Your name" autocomplete="name" />
+      </div>
+      <div class="auth-field">
+        <label for="signup-email">Email address</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" placeholder="Min 6 characters" autocomplete="new-password" />
+      </div>
+      <div class="auth-field">
+        <label for="signup-confirm">Confirm password</label>
+        <input type="password" id="signup-confirm" placeholder="Same password again" autocomplete="new-password" />
+      </div>
+      <button class="auth-submit" onclick="handleSignup()">Create account →</button>
+    </div>
+    <p class="auth-footer">Demo workspace — data is stored locally in your browser.</p>
+  </div>
+</div>
+
+<div class="shell" id="main-shell" style="display:none">
   <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="brand">
@@ -285,10 +362,11 @@
     </nav>
     <div class="sidebar-bottom">
       <div class="demo-box">
-        <span class="demo-dot"></span><strong>Demo workspace</strong>
-        <p>Changes stay in this browser session.</p>
+        <span class="demo-dot"></span><strong id="sidebar-user-name">Signed in</strong>
+        <p id="sidebar-user-email" style="color:var(--muted);font-size:11px;margin-top:4px"></p>
       </div>
       <button class="help-btn" onclick="openHelp()">ⓘ How to use</button>
+      <button class="logout-btn" onclick="handleLogout()">⎋ Sign out</button>
     </div>
   </aside>
 
@@ -313,6 +391,125 @@
 
 <script>
 'use strict';
+
+// ── Auth helpers ───────────────────────────────────────────────────────────
+const AUTH_USERS_KEY = 'eztech-users';
+const AUTH_SESSION_KEY = 'eztech-session';
+
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]'); } catch { return []; }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+}
+
+function getSession() {
+  try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY)); } catch { return null; }
+}
+
+function saveSession(user) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user));
+}
+
+function clearSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('auth-form-login').style.display = isLogin ? 'flex' : 'none';
+  document.getElementById('auth-form-signup').style.display = isLogin ? 'none' : 'flex';
+}
+
+function showAuthError(formId, msg) {
+  const el = document.getElementById(formId + '-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function clearAuthError(formId) {
+  const el = document.getElementById(formId + '-error');
+  if (el) { el.textContent = ''; el.classList.remove('show'); }
+}
+
+function handleLogin() {
+  clearAuthError('login');
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showAuthError('login', 'Please fill in all fields.'); return; }
+  const users = getUsers();
+  const user = users.find(u => u.email === email && u.password === password);
+  if (!user) { showAuthError('login', 'Incorrect email or password.'); return; }
+  saveSession(user);
+  launchApp(user);
+}
+
+function handleSignup() {
+  clearAuthError('signup');
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim().toLowerCase();
+  const password = document.getElementById('signup-password').value;
+  const confirm = document.getElementById('signup-confirm').value;
+  if (!name || !email || !password || !confirm) { showAuthError('signup', 'Please fill in all fields.'); return; }
+  if (password.length < 6) { showAuthError('signup', 'Password must be at least 6 characters.'); return; }
+  if (password !== confirm) { showAuthError('signup', 'Passwords do not match.'); return; }
+  const users = getUsers();
+  if (users.find(u => u.email === email)) { showAuthError('signup', 'An account with that email already exists.'); return; }
+  const user = { name, email, password };
+  saveUsers([...users, user]);
+  saveSession(user);
+  launchApp(user);
+}
+
+function handleLogout() {
+  clearSession();
+  document.getElementById('main-shell').style.display = 'none';
+  document.getElementById('auth-screen').classList.remove('hidden');
+  // Clear form fields
+  ['login-email','login-password','signup-name','signup-email','signup-password','signup-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  switchAuthTab('login');
+}
+
+function launchApp(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('main-shell').style.display = 'grid';
+  // Update sidebar with user info
+  const nameEl = document.getElementById('sidebar-user-name');
+  const emailEl = document.getElementById('sidebar-user-email');
+  if (nameEl) nameEl.textContent = user.name || 'Signed in';
+  if (emailEl) emailEl.textContent = user.email || '';
+  // Update avatar initials
+  const initials = (user.name || 'U').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  document.querySelectorAll('.avatar').forEach(el => { el.textContent = initials; });
+  updateNav();
+  renderContent();
+}
+
+// Allow pressing Enter in auth forms
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const loginVisible = document.getElementById('auth-form-login').style.display !== 'none';
+    const authVisible = !document.getElementById('auth-screen').classList.contains('hidden');
+    if (authVisible && loginVisible) { handleLogin(); return; }
+    if (authVisible && !loginVisible) { handleSignup(); return; }
+  }
+  if (e.key === 'Escape') closeModal();
+});
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+(function boot() {
+  const session = getSession();
+  if (session) {
+    launchApp(session);
+  }
+  // else auth screen stays visible (default)
+})();
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const STAGES = ["Received","Diagnosing","Awaiting Parts","In Repair","Testing","Ready for Pickup","Delivered"];
@@ -791,12 +988,7 @@ function openHelp() {
 function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
 function backdropClose(e) { if (e.target === e.currentTarget) closeModal(); }
 
-// Close modal on Escape key
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-// ── Init ───────────────────────────────────────────────────────────────────
-updateNav();
-renderContent();
+// Note: keydown listener (Escape + Enter for auth) is registered in the auth section above.
 </script>
 </body>
 </html>

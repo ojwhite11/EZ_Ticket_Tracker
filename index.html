@@ -536,7 +536,9 @@ const state = {
 };
 
 // ── Utilities ──────────────────────────────────────────────────────────────
-const isOverdue = t => !['Delivered','Ready for Pickup'].includes(t.status) && t.due < '2026-08-18';
+const TODAY_ISO = new Date().toISOString().slice(0,10); // "YYYY-MM-DD"
+const TODAY_LABEL = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+const isOverdue = t => !['Delivered','Ready for Pickup'].includes(t.status) && t.due < TODAY_ISO;
 const badgeClass = s => 'badge badge-' + s.toLowerCase().replaceAll(' ','-');
 const money = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -677,7 +679,7 @@ function renderDashboard() {
   return `
     <section class="welcome">
       <div>
-        <div class="welcome-eyebrow">TUESDAY, AUGUST 18</div>
+        <div class="welcome-eyebrow" id="today-label"></div>
         <h1>Repair operations, at a glance.</h1>
         <p>Track every device from intake to delivery without losing the details.</p>
       </div>
@@ -785,6 +787,8 @@ function renderContent() {
   // Restore search input value
   const si = document.getElementById('search-input');
   if (si) si.value = state.query;
+  // Set today's date label wherever it appears
+  document.querySelectorAll('#today-label').forEach(el => { el.textContent = TODAY_LABEL; });
 }
 
 // ── State mutators ─────────────────────────────────────────────────────────

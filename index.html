@@ -318,7 +318,14 @@
     .intro-cta { background:#f59e0b; color:#171008; font-weight:700; border:0; border-radius:8px; padding:10px 20px; font-size:13px; cursor:pointer; display:none; }
     .intro-cta:hover { background:#d97706; }
     .progress-bar { height:2px; background:#2b3040; border-radius:1px; margin-top:16px; width:min(820px,92vw); overflow:hidden; animation:fadeSlideUp .6s .2s ease both; }
-    .progress-fill { height:100%; background:#f59e0b; border-radius:1px; transition:width linear; }
+    .progress-fill { height:100%; background:#f59e0b; border-radius:1px; transition:width .4s ease; }
+    .demo-credentials { margin:0 28px 20px; background:#11141c; border:1px solid #2b3040; border-radius:10px; padding:12px 14px; }
+    .demo-credentials p { font-size:11px; color:#94a3b8; margin:0 0 8px; }
+    .demo-credentials .cred-row { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+    .demo-credentials .cred-label { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+    .demo-credentials code { font:600 12px 'IBM Plex Mono',monospace; color:#f59e0b; }
+    .demo-credentials button { font-size:11px; background:#f59e0b; color:#171008; border:0; border-radius:5px; padding:4px 10px; font-weight:700; cursor:pointer; }
+    .demo-credentials button:hover { background:#d97706; }
     @keyframes fadeSlideDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
     @keyframes fadeSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
     @media (max-width:650px) {
@@ -442,6 +449,16 @@
       </div>
       <button class="auth-submit" onclick="handleSignup()">Create account →</button>
     </div>
+    <div class="demo-credentials">
+      <p>🔑 Try the demo account:</p>
+      <div class="cred-row">
+        <div><div class="cred-label">Email</div><code>demo@eztech.com</code></div>
+        <button onclick="fillDemo()">Auto-fill →</button>
+      </div>
+      <div class="cred-row" style="margin-top:8px">
+        <div><div class="cred-label">Password</div><code>demo1234</code></div>
+      </div>
+    </div>
     <p class="auth-footer">Demo workspace — data is stored locally in your browser.</p>
   </div>
 </div>
@@ -507,8 +524,24 @@
 const AUTH_USERS_KEY = 'eztech-users';
 const AUTH_SESSION_KEY = 'eztech-session';
 
+const DEMO_USER = { name: 'Demo User', email: 'demo@eztech.com', password: 'demo1234' };
+
 function getUsers() {
-  try { return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]'); } catch { return []; }
+  try {
+    const users = JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
+    // Always ensure demo account exists
+    if (!users.find(u => u.email === DEMO_USER.email)) {
+      users.unshift(DEMO_USER);
+      localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+    }
+    return users;
+  } catch { return [DEMO_USER]; }
+}
+
+function fillDemo() {
+  document.getElementById('login-email').value = DEMO_USER.email;
+  document.getElementById('login-password').value = DEMO_USER.password;
+  clearAuthError('login');
 }
 
 function saveUsers(users) {
@@ -1099,15 +1132,15 @@ function backdropClose(e) { if (e.target === e.currentTarget) closeModal(); }
 
 // ── Intro slideshow ────────────────────────────────────────────────────────
 (function() {
-  const SLIDE_DURATION = [6000, 5000, 5000, 5000]; // ms per slide
   let currentSlide = 0;
-  let timer = null;
-  let startTime = null;
-  let rafId = null;
+  let scrollLocked = false;
 
   function goSlide(n) {
     const slides = document.querySelectorAll('.slide');
     const dots = document.querySelectorAll('.dot');
+    const total = slides.length;
+    n = Math.max(0, Math.min(n, total - 1));
+    if (n === currentSlide) return;
     // Exit current
     slides[currentSlide].classList.add('exit');
     setTimeout(() => slides[currentSlide] && slides[currentSlide].classList.remove('active','exit'), 450);
@@ -1117,53 +1150,60 @@ function backdropClose(e) { if (e.target === e.currentTarget) closeModal(); }
     slides[currentSlide].classList.remove('exit');
     // Update dots
     dots.forEach((d,i) => d.classList.toggle('active', i === currentSlide));
-    // Show CTA on last slide
-    const isLast = currentSlide === slides.length - 1;
+    // Show CTA on last slide, hide skip
+    const isLast = currentSlide === total - 1;
     document.getElementById('intro-skip-btn').style.display = isLast ? 'none' : '';
     document.getElementById('intro-cta-btn').style.display = isLast ? '' : 'none';
-    // Reset progress bar animation
-    startProgressBar();
+    // Update progress bar to reflect position
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = ((currentSlide / (total - 1)) * 100) + '%';
   }
 
-  function startProgressBar() {
-    cancelAnimationFrame(rafId);
-    clearTimeout(timer);
-    startTime = performance.now();
-    const duration = SLIDE_DURATION[currentSlide];
-    const fill = document.getElementById('progress-fill');
-    function animate(now) {
-      const pct = Math.min((now - startTime) / duration * 100, 100);
-      fill.style.width = pct + '%';
-      if (pct < 100) { rafId = requestAnimationFrame(animate); }
-    }
-    rafId = requestAnimationFrame(animate);
-    // Auto-advance (not on last slide)
-    const slides = document.querySelectorAll('.slide');
-    if (currentSlide < slides.length - 1) {
-      timer = setTimeout(() => goSlide(currentSlide + 1), duration);
-    }
+  function stopVideo() {
+    // Pause the HeyGen iframe by blanking its src
+    const iframe = document.querySelector('#slide-0 iframe');
+    if (iframe) { iframe.src = ''; }
   }
 
   function endIntro() {
-    cancelAnimationFrame(rafId);
-    clearTimeout(timer);
+    stopVideo();
     const intro = document.getElementById('intro-screen');
     intro.style.opacity = '0';
     intro.style.transition = 'opacity .4s ease';
     setTimeout(() => intro.classList.add('hidden'), 420);
     // Show auth
     document.getElementById('auth-screen').classList.remove('hidden');
-    // Animate auth card in
     const card = document.querySelector('.auth-card');
     if (card) { card.style.animation = 'fadeSlideDown .5s ease both'; }
   }
+
+  // Mouse wheel / trackpad navigation with debounce
+  document.getElementById('intro-screen').addEventListener('wheel', function(e) {
+    e.preventDefault();
+    if (scrollLocked) return;
+    scrollLocked = true;
+    setTimeout(() => { scrollLocked = false; }, 700); // debounce
+    const slides = document.querySelectorAll('.slide');
+    if (e.deltaY > 0) {
+      // Scroll down → next slide; if on last slide, go to sign in
+      if (currentSlide < slides.length - 1) {
+        goSlide(currentSlide + 1);
+      } else {
+        endIntro();
+      }
+    } else {
+      // Scroll up → previous slide
+      goSlide(currentSlide - 1);
+    }
+  }, { passive: false });
 
   // Expose globally so onclick attributes work
   window.goSlide = goSlide;
   window.endIntro = endIntro;
 
-  // Kick off
-  startProgressBar();
+  // Init progress bar at 0
+  const fill = document.getElementById('progress-fill');
+  if (fill) fill.style.width = '0%';
 })();
 
 // ── Boot ───────────────────────────────────────────────────────────────────
